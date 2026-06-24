@@ -1,35 +1,51 @@
 import questionary
 import typer
-
 from db import get_db
-from habit import *
-from analyse import *
+from tracker import Tracker
 
 
 def cli():
     db = get_db()
+    app = typer.Typer()
+    tracker = Tracker(db)
+
     questionary.confirm("Welcome to your Habit Tracker!").ask()
 
     stop = False
     while not stop:
 
         choice = questionary.select(
-            "Main Menu:\nWhat do you want to do?",
+            "\n\nMain Menu:\nWhat do you want to do?",
             choices=["Create habits", "Manage habits", "Track a habit", "Analyse", "Exit"]
         ).ask()
 
-        # name = questionary.text("Whats the name of the habit?").ask()
 
         if choice == "Create habits":
+            typer.secho("\n--- Create a new Habit ---", fg=typer.colors.CYAN, bold=True)
+
             name = questionary.text("Whats the name of the habit?").ask()
+            if not name:
+                typer.secho("Name cannot be empty. Habit creation cancelled.", fg=typer.colors.RED)
+                questionary.press_any_key_to_continue("Press any key to continue...").ask()
+                continue
+
             desc = questionary.text("What is the description of your habit?").ask()
+
+            periodicity = questionary.select(
+                "Do you want to complete the habit daily or weekly?",
+                choices=["Daily", "Weekly"]).ask()
+
+            '''
             habit = Habit(name, desc)
             tracker.store(db)       # Richtig verbunden zum speichern???
-
+            '''
+            # Dou you really want to creat this habit? Zusammengefasst anzeigen
+            typer.secho(f"The habit {name} was created successfully!", fg=typer.colors.GREEN)
+            questionary.press_any_key_to_continue("Press any key to continue...").ask()
 
         elif choice == "Manage habits":
             ''' User can edit or delete the selected habit '''
-
+            '''
             habit_names = get_all_habit_names()     # show all habits
 
             if not habit_names:
@@ -48,12 +64,14 @@ def cli():
             elif action == "Delete a habit":
                 # delete the habit
                 pass
+            '''
+            pass
 
         elif choice == "Track a habit":
             pass
 
         elif choice == "Analyse":
-
+            '''
             app = typer.Typer()
 
             def handle_show_periodicity():
@@ -105,6 +123,8 @@ def cli():
                             typer.echo(f"{name:<20} | {periodicity:<12} | {description:<30} | {current_streak:<30} | {longest_streak:<30}")
 
                         typer.echo("\n")
+            '''
+            pass
 
 
         elif choice == "Exit":

@@ -1,11 +1,10 @@
 from analyse import calc_current_streak
 
 
-class tracker:
-    pass
+class Tracker:
 
-    def __init__(self, name: str):
-        self.name = name
+    def __init__(self, db_connection):
+        self.db = db_connection
 
 
     def create_habit(self):
@@ -60,8 +59,16 @@ class tracker:
     #self.current_streak
     #self.longest_streak
 
-    def store(self):
-        pass
+    def store(habit: Habit):
+        if not habit.name.strip():
+            return False, "The habit name cannot be empty!"
+
+        try:
+            # Wir lesen die Daten aus dem Objekt aus und geben sie an die DB
+            add_habit_to_db(self.db, habit.name, habit.periodicity, habit.desc)
+            return True, f"The habit '{habit.name}' was stored successfully!"
+        except Exception as e:
+            return False, f"Error storing habit: {str(e)}"
 
     def logout(self):
         # Motivierender satz
