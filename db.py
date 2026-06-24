@@ -10,16 +10,38 @@ def get_db(name="main.db"):
 def create_tables(db):
     cur = db.cursor()
 
-    cur.execute("""CREATE TABLE IF NOT EXISTS counter (
+    cur.execute("""CREATE TABLE IF NOT EXISTS habit (
         name TEXT PRIMARY KEY,
-        description TEXT)""")
+        description TEXT,
+        periodicity TEXT,
+        start_date DATETIME,
+        end_date DATETIME,
+        current_streak INTEGER,
+        longest_streak INTEGER)""")
 
-    cur.execute("""CREATE TABLE IF NOT EXISTS tracker (
-        date TEXT,
-        counterName TEXT,
-        FOREIGN KEY(counterName) REFERENCES counter(name))""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS completion_list (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        habit_name TEXT,
+        completion_date DATETIME,
+        FOREIGN KEY(habit_name) REFERENCES habit(name))""")
 
     db.commit()
+
+
+def add_habit_to_db(name: str, periodicity: str, description: str, db_name="main.db"):
+    """Fügt ein neues Habit dauerhaft in die SQLite-Datenbank ein."""
+    cur = db.cursor()
+
+    # SQL-Befehl zum Einfügen der Daten
+    cur.execute("""
+                   INSERT INTO habit (name, description, periodicity, start_date, end_date, current_streak, longest_streak)
+                   VALUES (?, ?, ?, ?, ?, 0, 0)
+                   """, (name, description, periodicity, start_date, end_date))
+
+    db.commit()
+
+
+
 
 
 def add_counter(db, name, description):
@@ -34,7 +56,7 @@ def increment_counter(db, name, event_date=None):
     cur.execute("INSERT INTO tracker VALUES (?, ?)", (event_date, name))
     db.commit()
 
-def get_counter_data(db, name):
+def get_habit_data(db, name):
     cur = db.cursor()
     cur.execute("SELECT * FROM tracker WHERE counterName = ?", (name,))
     return cur.fetchall()
