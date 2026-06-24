@@ -18,7 +18,7 @@ habittracker/
 ├── tracker.py
 ├── analyse.py
 ├── db.py
-└──  test.py
+└── test.py
 ```
 
 ## Requirements
