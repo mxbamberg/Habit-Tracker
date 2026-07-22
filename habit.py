@@ -1,5 +1,5 @@
-from typing import List
 from datetime import datetime
+from typing import List
 
 
 class Habit:
@@ -9,7 +9,7 @@ class Habit:
                  periodicity: str,
                  start_date: datetime,
                  desc: str = "",
-                 end_date: datetime = None,
+                 end_date: Optional[datetime] = None,
                  completion_list: List[datetime] = None,
                  current_streak: int = 0,
                  longest_streak: int = 0):
