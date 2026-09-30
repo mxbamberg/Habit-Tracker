@@ -24,11 +24,12 @@ habittracker/
 
 ## Requirements
 
-- python 3.14 or later
+- python 3.10+ or later
 - pip
+- External dependencies listed in `requirements.txt` (`typer`, `questionary`, `pytest`)
 
 ## Installation
-1. Ensure Python 3.14+ is installed:
+1. Ensure Python 3.10+ is installed:
 ```shell
 python --version
 ```
@@ -56,7 +57,7 @@ and use the interactive menu to interact with the app:
 5. Help
 0. Exit
 ```
-To reset all data int the database, simply delete the database file:
+To reset all data in the database, simply delete the database file:
 ```shell
 rm main.db
 ```
