@@ -1,6 +1,5 @@
 # My Habit Tracker App
 
-A little description
 
 ## What is it
 
@@ -15,12 +14,12 @@ version 3.14 and will use the object-oriented programming paradigm.
 habittracker/
 ├── main.py    # Interactive CLI menu
 ├── habit.py    # Habit class
-├── tracker.py
-├── analyse.py
+├── tracker.py    # Controller layer that manages habit lifecycle (creation, completion, edits, deletion)
+├── analyse.py    # Functional analytics module
 ├── db.py    # SQLite database
 ├── resources.py    # 5 predefined habits + help content
 ├── seed.py      # 4 weeks of sample data
-└── test_tracker.py
+└── test_tracker.py    # Unit test
 ```
 
 ## Requirements
@@ -29,17 +28,20 @@ habittracker/
 - pip
 
 ## Installation
-
+1. Ensure Python 3.14+ is installed:
 ```shell
-git clone XXXXXXX
-cd XXXXXX
+python --version
+```
+2. Clone or download this repository
+
+3. Install the requirements
+```shell
 pip install -r requirements.txt
 ```
 
 ## Usage
 
 Run
-
 ```shell
 python main.py
 ```
@@ -54,6 +56,10 @@ and use the interactive menu to interact with the app:
 5. Help
 0. Exit
 ```
+To reset all data int the database, simply delete the database file:
+```shell
+rm main.db
+```
 
 ## Predefined habits
 
@@ -66,6 +72,13 @@ The user can create custom habits or choose one of five predefined habits:
 | Read 10 Pages | daily   | Read 10 pages of a book   |
 | Workout Session | weekly   | Go to the gym or do home workout   |
 | Clean Room | weekly   | Tidy up your room/apartment   |
+
+## Seed the database with example data
+This inserts 5 predefined habits (3 daily, 2 weekly) and 4 weeks of completion history into the database.
+```shell
+python seed.py
+```
+
 
 ## Unit Test
 The test suite uses Pytest
