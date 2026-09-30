@@ -18,7 +18,9 @@ habittracker/
 ├── tracker.py
 ├── analyse.py
 ├── db.py
-└── test.py
+├── resources.py
+├── seed.py
+└── test_tracker.py
 ```
 
 ## Requirements
@@ -34,20 +36,37 @@ pip install -r requirements.txt
 
 ## Usage
 
-Start
+Run
 
 ```shell
 python main.py
 ```
 
-and follow instructions on screen.
+and use the interactive menu to interact with the app.
+
+```shell
+1. Create a habit
+2. Manage habits
+3. Complete a habit
+4. Analyse
+5. Help
+0. Exit
+```
 
 ## Predefined habits
 
-Hier predefined habits auflisten (Tabelle)
+The user can create custom habits or choose one of five predefined habits:
 
-## Tests
+| Habit | periodicity    | description    |
+| :---:   | :---: | :---: |
+| Drink Water | daily   | Drink at least 2 liters of water every day   |
+| Morning Run | daily   | Run for 20 minutes in the morning   |
+| Read 10 Pages | daily   | Read 10 pages of a book   |
+| Workout Session | weekly   | Go to the gym or do home workout   |
+| Clean Room | weekly   | Tidy up your room/apartment   |
+
+## Unit Test
 
 ```shell
-pytest .
+pytest test_tracker.py
 ```
