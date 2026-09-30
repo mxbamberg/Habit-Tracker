@@ -13,13 +13,13 @@ version 3.14 and will use the object-oriented programming paradigm.
 
 ```text
 habittracker/
-├── main.py
-├── habit.py
+├── main.py    # Interactive CLI menu
+├── habit.py    # Habit class
 ├── tracker.py
 ├── analyse.py
-├── db.py
-├── resources.py
-├── seed.py
+├── db.py    # SQLite database
+├── resources.py    # 5 predefined habits + help content
+├── seed.py      # 4 weeks of sample data
 └── test_tracker.py
 ```
 
@@ -31,6 +31,8 @@ habittracker/
 ## Installation
 
 ```shell
+git clone XXXXXXX
+cd XXXXXX
 pip install -r requirements.txt
 ```
 
@@ -42,7 +44,7 @@ Run
 python main.py
 ```
 
-and use the interactive menu to interact with the app.
+and use the interactive menu to interact with the app:
 
 ```shell
 1. Create a habit
@@ -57,7 +59,7 @@ and use the interactive menu to interact with the app.
 
 The user can create custom habits or choose one of five predefined habits:
 
-| Habit | periodicity    | description    |
+| Habit | Periodicity    | Description    |
 | :---:   | :---: | :---: |
 | Drink Water | daily   | Drink at least 2 liters of water every day   |
 | Morning Run | daily   | Run for 20 minutes in the morning   |
@@ -66,7 +68,7 @@ The user can create custom habits or choose one of five predefined habits:
 | Clean Room | weekly   | Tidy up your room/apartment   |
 
 ## Unit Test
-
+The test suite uses Pytest
 ```shell
 pytest test_tracker.py
 ```
