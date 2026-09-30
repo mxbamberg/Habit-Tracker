@@ -3,15 +3,19 @@ from datetime import datetime
 
 def get_db(name="main.db"):
     db = sqlite3.connect(name)
+    db.execute("PRAGMA foreign_keys = ON;") # activate ON DELETE CASCADE
     create_tables(db)
     return db
 
 
-def create_tables(db):
+def create_tables(db: sqlite3.Connection):
+    """Creates the 'habit' and 'completion_list' tables in the database if they do not exist"""
+
     cur = db.cursor()
 
     cur.execute("""CREATE TABLE IF NOT EXISTS habit (
-        name TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
         desc TEXT,
         periodicity TEXT,
         start_date TEXT,
@@ -21,14 +25,14 @@ def create_tables(db):
 
     cur.execute("""CREATE TABLE IF NOT EXISTS completion_list (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        habit_name TEXT,
+        habit_id INTEGER NOT NULL,
         completion_date DATETIME,
-        FOREIGN KEY(habit_name) REFERENCES habit(name))""")
+        FOREIGN KEY(habit_id) REFERENCES habit(id) ON DELETE CASCADE)""")
 
     db.commit()
 
 
-def add_habit_to_db(db, habit):
+def add_habit_to_db(db: sqlite3.Connection, habit):
     """Stores the habit in the database"""
     cur = db.cursor()
 
@@ -50,40 +54,45 @@ def add_habit_to_db(db, habit):
 
     db.commit()
 
-def add_completion_to_db(db, habit_name:str, completion_time:datetime):
+def add_completion_to_db(db: sqlite3.Connection, habit_id: int, completion_time):
 
     cur = db.cursor()
-    time_str = completion_time.strftime("%Y-%m-%d")
+    time_str = completion_time.isoformat() if hasattr(completion_time, "isoformat") else str(completion_time)
 
     cur.execute("""
-        INSERT INTO completion_list (habit_name, completion_date)
+        INSERT INTO completion_list (habit_id, completion_date)
         VALUES (?, ?)
-    """, (habit_name, time_str))
-
+    """, (habit_id, time_str))
     db.commit()
 
+def get_habit_id_by_name(db: sqlite3.Connection, habit_name: str) -> int | None:
+  """Fetch the database ID for a specific habit name"""
+  cur = db.cursor()
+  cur.execute("SELECT id FROM habit WHERE name = ?", (habit_name,))
+  row = cur.fetchone()
+  return row[0] if row else None
 
 
 def get_habit_by_name(db: sqlite3.Connection, habit_name: str) -> tuple | None:
-    """Retrieves a habit's name and periodicity from the database."""
+    """Retrieves a habit's name and periodicity from the database"""
     cur = db.cursor()
     cur.execute("SELECT name, periodicity FROM habit WHERE name = ?", (habit_name,))
     return cur.fetchone()
 
 def fetch_all_habits_raw(db: sqlite3.Connection) -> list[tuple]:
-    """Retrieves all rows and columns from the habit table."""
+    """Retrieves all rows and columns from the habit table"""
     cur = db.cursor()
     cur.execute("SELECT name, desc, periodicity, start_date, end_date, current_streak, longest_streak FROM habit")
     return cur.fetchall()
 
 
-def update_habit(db, old_name: str, new_name: str = None, new_desc: str = None, new_periodicity: str = None):
-    """Aktualisiert spezifische Felder eines bestehenden Habits in der Datenbank."""
+def update_habit(db: sqlite3.Connection, habit_id: str, new_name: str = None, new_desc: str = None, new_periodicity: str = None):
+    """Updates specific entries of an existing habit in the database"""
 
     updates = []
     parameters = []
 
-    # Wir prüfen, ob neue Werte übergeben wurden und fügen sie dem SQL-Befehl hinzu
+    # check if new values have been passed and add them to the SQL statement
     if new_name is not None:
         updates.append("name = ?")
         parameters.append(new_name)
@@ -96,64 +105,61 @@ def update_habit(db, old_name: str, new_name: str = None, new_desc: str = None, 
         updates.append("periodicity = ?")
         parameters.append(new_periodicity)
 
-    # Wenn der User überall "Nein" geklickt hat, gibt es nichts zu tun
     if not updates:
         return
 
-        # SQL-Befehl dynamisch zusammenbauen (z.B. "UPDATE habits SET name = ?, periodicity = ? WHERE name = ?")
-    query = f"UPDATE habits SET {', '.join(updates)} WHERE name = ?"
-    parameters.append(old_name)
+    query = f"UPDATE habit SET {', '.join(updates)} WHERE name = ?"
+    parameters.append(habit_id)
 
-    cur = db.cur()
+    cur = db.cursor()
     cur.execute(query, parameters)
     db.commit()
 
 
-def delete_habit_from_db(db, habit_name):
+def delete_habit_from_db(db: sqlite3.Connection, habit_id: int):
     """Deletes a habit from the database"""
     cur = db.cursor()
-    cur.execute("DELETE FROM completion_list WHERE habit_name = ?", (habit_name,))
-    cur.execute("DELETE FROM habit WHERE name = ?", (habit_name,))
+    cur.execute("DELETE FROM completion_list WHERE habit_id = ?", (habit_id,))
+    cur.execute("DELETE FROM habit WHERE id = ?", (habit_id,))
     db.commit()
 
 
-def get_latest_completions(db: sqlite3.Connection, habit_name: str, limit: int = 10) -> list[str]:
-    """Holt die rohen Datums-Strings der letzten N Erledigungen aus der Datenbank."""
+def get_latest_completions(db: sqlite3.Connection, habit_id: int, limit: int = 10):
+    """Retrieve the raw date strings for the last n-completed tasks from the database"""
     cur = db.cursor()
     cur.execute("""
                 SELECT completion_date
                 FROM completion_list
-                WHERE habit_name = ?
+                WHERE habit_id = ?
                 ORDER BY completion_date DESC LIMIT ?
-                """, (habit_name, limit))
+                """, (habit_id, limit))
 
-    # Packt die Ergebnisse in eine flache Liste von Strings: ['2026-07-15 14:22:10', ...]
-    return [row[0] for row in cur.fetchall()]
+    return cur.fetchall()
 
-def fetch_completion_dates(db: sqlite3.Connection, habit_name: str) -> list[tuple]:
-    """Retrieves all completion dates for a specific habit ordered from oldest to newest."""
+def fetch_completion_dates(db: sqlite3.Connection, habit_id: int) -> list[tuple]:
+    """Retrieves all completion dates for a specific habit ordered from oldest to newest"""
     cur = db.cursor()
     cur.execute("""
         SELECT completion_date
         FROM completion_list
-        WHERE habit_name = ?
+        WHERE habit_id = ?
         ORDER BY completion_date ASC
-    """, (habit_name,))
+    """, (habit_id,))
     return cur.fetchall()
 
-def save_streaks(db: sqlite3.Connection, habit_name: str, current_streak: int, longest_streak: int):
-    """Updates the current and longest streaks for a specific habit."""
+def save_streaks(db: sqlite3.Connection, habit_id: int, current_streak: int, longest_streak: int):
+    """Updates the current and longest streaks for a specific habit"""
     cur = db.cursor()
     cur.execute("""
         UPDATE habit
         SET current_streak = ?,
             longest_streak = ?
-        WHERE name = ?
-    """, (current_streak, longest_streak, habit_name))
+        WHERE id = ?
+    """, (current_streak, longest_streak, habit_id))
     db.commit()
 
 def fetch_habit_names_sorted(db: sqlite3.Connection) -> list[tuple]:
-    """Retrieves all habit names from the database, ordered alphabetically."""
+    """Retrieves all habit names from the database, ordered alphabetically"""
     cur = db.cursor()
     cur.execute("SELECT name FROM habit ORDER BY name ASC")
     return cur.fetchall()

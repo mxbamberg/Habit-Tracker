@@ -15,14 +15,30 @@ def calc_streaks(dates: List[date], periodicity: str) -> tuple[int, int]:
     if not dates:
         return 0, 0
 
-    dates = sorted(list(set(dates)))
+    # check if entries are datetime objects
+    clean_dates = []
+    for d in dates:
+        if isinstance(d, str):
+            # strip time
+            clean_date_str = d.split()[0]
+            clean_dates.append(datetime.strptime(clean_date_str, "%Y-%m-%d").date())
+        elif isinstance(d, datetime):
+            clean_dates.append(d.date())
+        elif isinstance(d, date):
+            clean_dates.append(d)
+
+    if not clean_dates:
+        return 0, 0
+
+    # sort & delete duplicates
+    dates = sorted(list(set(clean_dates)))
 
     current_streak = 0
     longest_streak = 0
     temp_streak = 0
 
-    # 2. Calculate current streak
-    if periodicity == "daily":
+    # Calculate current streak
+    if periodicity.lower() == "daily":
         for i in range(len(dates)):
             if i == 0:
                 temp_streak = 1
@@ -47,7 +63,7 @@ def calc_streaks(dates: List[date], periodicity: str) -> tuple[int, int]:
         else:
             current_streak = 0
 
-    elif periodicity == "weekly":
+    elif periodicity.lower() == "weekly":
         # Weekly means completed once in a calender week
         for i in range(len(dates)):
             if i == 0:
@@ -87,79 +103,62 @@ def calc_streaks(dates: List[date], periodicity: str) -> tuple[int, int]:
 
 
 def get_longest_streak_alltime(habits:List[Habit]) -> int:
-    """Gibt den Namen und die Länge des Habits mit der historisch längsten Streak zurück."""
+    """Retrieves the habit name and streak length for the all-time longest streak
+
+    :param habits: A list of Habit objects
+    :return: Name of the top habit and its longest streak value
+    """
+
     if not habits:
         return "No habits found", 0
+
+    # Determine the habit with the maximum all-time streak using a key function
     best_habit = max(habits, key=lambda h: h.longest_streak)
     return best_habit.name, best_habit.longest_streak
 
 def get_longest_active_streak(habits: List[Habit]) -> tuple[str, int]:
-    """Gibt den Namen und die Länge des Habits mit der aktuell längsten aktiven Streak zurück."""
+    """Retrieves the habit name and streak length for the currently highest active streak
+
+    :param habits: A list of Habit objects
+    :return: Name of the top habit and its current active streak value
+    """
+
     if not habits:
         return "No habits found", 0
+
+    # Determine the habit with the maximum active current streak
     best_habit = max(habits, key=lambda h: h.current_streak)
     return best_habit.name, best_habit.current_streak
 
 
 def count_broken_streaks(dates: List[date], periodicity: str) -> int:
-    """Calculates how many times a habit streak was broken based on completion history."""
+    """Calculates how many times a habit streak was broken
+
+    :param dates: A list of date objects representing completion timestamp
+    :param periodicity: 'daily' or 'weekly'
+    :return: The total number of broken streaks as an integer
+    """
+
     if not dates or len(dates) < 2:
         return 0
 
+    # Ensure dates are unique and sorted chronologically
     dates = sorted(list(set(dates)))
     breaks = 0
 
-    if periodicity == "daily":
+    if periodicity.lower() == "daily":
         for i in range(1, len(dates)):
-            # Wenn der Abstand größer als 1 Tag ist, gab es einen Bruch
+            # If gap between consecutive dates exceeds 1 day, a streak was broken
             if (dates[i] - dates[i - 1]).days > 1:
                 breaks += 1
 
-    elif periodicity == "weekly":
+    elif periodicity.lower() == "weekly":
         for i in range(1, len(dates)):
-            # Nutze die ISO-Wochennummern für den Vergleich
             year_prev, week_prev, _ = dates[i - 1].isocalendar()
             year_curr, week_curr, _ = dates[i].isocalendar()
 
-            # Einfache Annäherung: Wenn es nicht dieselbe und nicht die darauffolgende Woche ist
             weeks_diff = (dates[i] - dates[i - 1]).days / 7
-            if weeks_diff > 1.5:  # Mehr als eine Woche Lücke
+            if weeks_diff > 1.5:
                 breaks += 1
 
     return breaks
-
-'''
-def generate_streak_info(habits):
-    """
-    Parameters
-    ----------
-
-    habits:
-        A dataframe containing data about habits.
-        Must contain a `completions` column with two
-        unique values for made and missed shots.
-        Must be homogenous (contain only shots
-        that qualify for the streak type you want
-        to calculate (eg all FT for a single
-        player) and be pre-sorted by time.
-
-    Returns
-    -------
-
-    shots_with_streaks:
-        The original dataframe with a new column
-        `streak_counter` containing integers with
-        counts for each streak.
-    """
-
-    data = habits['result'].to_frame()
-    data['start_of_streak'] = data['result'].ne(data['result'].shift())
-    data['streak_id'] = data.start_of_streak.cumsum()
-    data['streak_counter'] = data.groupby('streak_id').cumcount() + 1
-    habits_with_streaks = pd.concat([habits, data['streak_counter']], axis=1)
-    return habits_with_streaks
-
-
-shots = streaks['result'].to_frame()
-generate_streak_info(habits)
-'''

@@ -1,17 +1,18 @@
 from datetime import datetime, timedelta
-from db import get_db, add_habit_to_db, add_completion_to_db
-from tracker import Tracker
+import db
 from habit import Habit
+from tracker import Tracker
 
 
 def seed_database():
-    print("🌱 Starte das Befüllen der Datenbank mit Beispieldaten...")
+    print("Initializing the database with 4 weeks of sample tracking data...")
 
-    # DB-Verbindung und Tracker initialisieren
-    db = get_db()
-    tracker = Tracker(db)
+    # Connect to database
+    db_conn = db.get_db()
+    db.create_tables(db_conn)
+    tracker = Tracker(db_conn)
 
-    # 1. Beispieldaten definieren (5 vordefinierte Habits laut Modulvorgabe)
+    # 5 predefined habits
     habits_data = [
         # Daily Habits
         {
@@ -19,21 +20,18 @@ def seed_database():
             "desc": "Drink at least 2 liters of water daily",
             "periodicity": "daily",
             "start_date": datetime.now() - timedelta(days=28),
-            "completes_daily": True,  # Jeden Tag erledigt
         },
         {
             "name": "Read Book",
             "desc": "Read 15 pages of a book",
             "periodicity": "daily",
             "start_date": datetime.now() - timedelta(days=28),
-            "completes_daily": False,  # Gelegentlich ausgelassen für Lücken/Breaks
         },
         {
             "name": "Exercise",
             "desc": "30 minutes workout",
             "periodicity": "daily",
             "start_date": datetime.now() - timedelta(days=28),
-            "completes_daily": False,
         },
         # Weekly Habits
         {
@@ -41,64 +39,61 @@ def seed_database():
             "desc": "Deep clean the entire flat",
             "periodicity": "weekly",
             "start_date": datetime.now() - timedelta(days=28),
-            "completes_weekly": True,
         },
         {
             "name": "Weekly Review",
             "desc": "Reflect on goals and budget",
             "periodicity": "weekly",
             "start_date": datetime.now() - timedelta(days=28),
-            "completes_weekly": True,
-        }
+        },
     ]
 
-    # 2. Habits und Completion-Historie in DB schreiben
     today = datetime.now()
 
     for data in habits_data:
-        # Habit-Objekt anlegen
         habit = Habit(
             name=data["name"],
             desc=data["desc"],
             periodicity=data["periodicity"],
-            start_date=data["start_date"]
+            start_date=data["start_date"],
         )
 
-        # In DB speichern (falls noch nicht vorhanden)
-        success, msg = tracker.store(habit)
+        # Save in db (if necessary)
+        success, msg = tracker.store_new_habit(habit)
         if success:
-            print(f"✅ Habit '{habit.name}' angelegt.")
+            print(f"Habit '{habit.name}' stored successfully!")
         else:
-            print(f"ℹ️ {msg}")
+            print(f"Info for '{habit.name}': {msg}")
 
-        # Erledigungen der letzten 4 Wochen (28 Tage) simuliert eintragen
+        habit_id = db.get_habit_id_by_name(db_conn, habit.name)
+        if not habit_id:
+            continue
+
         if habit.periodicity == "daily":
             for i in range(28, 0, -1):
                 completion_date = today - timedelta(days=i)
+                date_str = completion_date.strftime("%Y-%m-%d %H:%M:%S")
 
-                # Bei 'Drink Water' jeden Tag eintragen
                 if data["name"] == "Drink Water":
-                    add_completion_to_db(db, habit.name, completion_date)
+                    db.add_completion_to_db(db_conn, habit_id, date_str)
 
-                # Bei 'Read Book' hin und wieder einen Tag auslassen
                 elif data["name"] == "Read Book" and i not in [5, 12, 19]:
-                    add_completion_to_db(db, habit.name, completion_date)
+                    db.add_completion_to_db(db_conn, habit_id, date_str)
 
-                # Bei 'Exercise' mehrmals auslassen (gebrochene Streaks)
                 elif data["name"] == "Exercise" and i % 3 != 0:
-                    add_completion_to_db(db, habit.name, completion_date)
+                    db.add_completion_to_db(db_conn, habit_id, date_str)
 
         elif habit.periodicity == "weekly":
-            # 4 wöchentliche Erledigungen (1x pro Woche)
             for week in range(4, 0, -1):
                 completion_date = today - timedelta(weeks=week)
-                add_completion_to_db(db, habit.name, completion_date)
+                date_str = completion_date.strftime("%Y-%m-%d %H:%M:%S")
+                db.add_completion_to_db(db_conn, habit_id, date_str)
 
-        # 3. Streaks berechnen und in der DB aktualisieren
+        # Calculate streaks
         tracker.update_streaks(habit.name, habit.periodicity)
 
-    db.close()
-    print("\n🎉 Beispieldaten erfolgreich eingespielt und Streaks berechnet!")
+    db_conn.close()
+    print("\nDatabase successfully initialized! You can now run the app or execute tests.\n")
 
 
 if __name__ == "__main__":

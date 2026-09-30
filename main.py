@@ -6,42 +6,16 @@ from db import get_db
 from resources import *
 import re
 from analyse import count_broken_streaks, get_longest_active_streak
-# import random   # Zufällige Tipps und Motivation
 
 app = typer.Typer()
 
-
-def show_welcome_screen():
-    """Zeigt ein Willkommens-Banner nur mit Typer-Bordmitteln."""
-
-    # 1. Optional: Das Terminal vorher leeren, damit es sauber aussieht
-
-
-    # 2. Ein paar Leerzeilen für den Abstand von oben
-    print("\n" * 10)
-
-    # 3. Der obere Rand der Box
-    typer.secho("  " + "=" * 40, fg=typer.colors.CYAN, bold=True)
-
-    # 4. Der Titel (zentriert durch Leerzeichen)
-    typer.secho("           HABIT TRACKER ", fg=typer.colors.MAGENTA, bold=True)
-
-    # 5. Der untere Rand der Box
-    typer.secho("  " + "=" * 40, fg=typer.colors.CYAN, bold=True)
-
-    # 6. Der Untertitel
-    typer.secho("      Build good habits. Break bad ones.\n", fg=typer.colors.YELLOW)
-
-    questionary.press_any_key_to_continue("\nPress key to start").ask()
-
-# in ui.py packen, damit übersichtlicher
 custom_style = Style([
-    ('qmark', 'fg:#673ab7 bold'),       # Fragezeichen-Farbe
-    ('question', 'bold'),               # Fragetext
-    ('answer', 'fg:#f44336 bold'),      # Eingegebene Antwort
-    ('pointer', 'fg:#673ab7 bold'),     # Der Zeiger (z.B. "»")
-    ('highlighted', 'fg:#673ab7 bold'), # Die aktuell markierte Auswahl
-    ('selected', 'fg:#cc5454'),         # Ausgewählte Option
+    ('qmark', 'fg:cyan bold'),
+    ('question', 'fg:white bold'),
+    ('answer', 'fg:yellow bold'),
+    ('pointer', 'fg:cyan bold'),
+    ('highlighted', 'fg:green bold'),
+    ('selected', 'fg:yellow'),
 ])
 
 @app.command()
@@ -49,14 +23,18 @@ def cli():
     db = get_db()
     tracker = Tracker(db)
 
-    show_welcome_screen()
+    print("\n" * 10)
+    typer.secho("=" * 45, fg=typer.colors.WHITE)
+    typer.secho("    Welcome to your Habit Tracker!", fg=typer.colors.BRIGHT_BLUE, bold=True)
+    typer.secho("=" * 45, fg=typer.colors.WHITE)
+    questionary.press_any_key_to_continue("\nPress key to start").ask()
 
     stop = False
     while not stop:
-        print("\n" * 10)
-        typer.secho("=" * 45, fg=typer.colors.RED)
-        typer.secho("            MAIN MENU         ", fg=typer.colors.RED, bold=True)
-        typer.secho("=" * 45, fg=typer.colors.RED)
+        print("\n" * 20)
+        typer.secho("=" * 45, fg=typer.colors.BRIGHT_RED)
+        typer.secho("            MAIN MENU         ", fg=typer.colors.WHITE, bold=True)
+        typer.secho("=" * 45, fg=typer.colors.BRIGHT_RED)
 
         choice = questionary.select(
             "",
@@ -65,83 +43,136 @@ def cli():
         ).ask()
 
 
-
         if choice == "1. Create a habit":
             """User can create a new habit:
-            options: choose name, description, periodicity, start_date, end_date"""
-            print("\n" * 10)
-            typer.secho("=" * 45, fg=typer.colors.CYAN)
-            typer.secho("    Create a new Habit", fg=typer.colors.CYAN, bold=True)
-            typer.secho("=" * 45, fg=typer.colors.CYAN)
+            options: choose name, description, periodicity, start_date, end_date
+            User can select a predefined habit or create a new one"""
+            print("\n" * 20)
+            typer.secho("=" * 45, fg=typer.colors.BRIGHT_BLUE)
+            typer.secho("    Create a new Habit", fg=typer.colors.WHITE, bold=True)
+            typer.secho("=" * 45, fg=typer.colors.BRIGHT_BLUE)
 
-            name = questionary.text("Whats the name of the habit?").ask()
-            if not name:
-                typer.secho("Name cannot be empty. Habit creation cancelled.", fg=typer.colors.RED)
-                questionary.press_any_key_to_continue("Press any key to continue...").ask()
+            creation_type = questionary.select(
+                "",
+                choices=[
+                    "1. Choose from predefined habits",
+                    "2. Create a custom habit",
+                    "0. Back"
+                ],
+                style=custom_style
+            ).ask()
+
+            if not creation_type or creation_type == "0. Back":
+                # User returns to main menu
                 continue
 
-            desc = questionary.text("What is the description of your habit?").ask()
 
-            periodicity = questionary.select(
-                "Do you want to complete the habit daily or weekly?",
-                choices=["Daily", "Weekly"]).ask()
+            if creation_type == "1. Choose from predefined habits":
+                """User can select a predefined habit"""
 
-            start_date = datetime.now()
+                predefined_habits = tracker.get_predefined_habits()
 
-            end_date = None
-            add_end = questionary.confirm("Do you want to set an end date for this habit?", default=False).ask()
-            if add_end:
-                while True:
-                    date_input = questionary.text("Enter end date (Format: YYYY-MM-DD):").ask()
-                    if not date_input:
-                        break  # User left it empty, remains None
+                choices = [
+                    {"name": f"{h['name']} ({h['periodicity']})", "value": h}
+                    for h in predefined_habits
+                ]
+                choices.append({"name": "0. Back", "value": None})
+                
 
-                    # Simple RegEx to validate format
-                    if re.match(r"^\d{4}-\d{2}-\d{2}$", date_input):
-                        try:
-                            # Convert the string to a real datetime object for the Habit class
-                            end_date = datetime.strptime(date_input, "%Y-%m-%d")
+                selected_habit = questionary.select(
+                    "Which habit do you want to create?",
+                    choices=choices,
+                    style=custom_style
+                ).ask()
 
-                            # Ensure end date isn't in the past
-                            if end_date.date() < start_date.date():
-                                print("The end date cannot be in the past!")
-                                continue
+                if not selected_habit or selected_habit == "0. Back":
+                    # User returns to main menu
+                    continue
 
-                            break
-                        except ValueError:
-                            print("Invalid date values (e.g., check months/days).")
-                    else:
-                        print("Invalid format! Please use YYYY-MM-DD (e.g., 2026-12-31).")
+                name = selected_habit["name"]
+                periodicity = selected_habit["periodicity"]
+                desc = selected_habit["desc"]
+                start_date = datetime.now()
+                end_date = None
 
-            new_habit = Habit(
-                name=name.strip(),  # removes whitespaces at beginning and end
-                periodicity=periodicity.lower(),
-                desc=desc.strip(),
-                start_date=start_date,
-                end_date=end_date,
-            )
+                new_habit = Habit(
+                    name=name.strip(),
+                    periodicity=periodicity.lower(),
+                    desc=desc.strip(),
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+                
+                success, message = tracker.store_new_habit(new_habit)  # store habit in main.db
+                if success:
+                    typer.secho(f"\nHabit {name} was created successfully!", fg=typer.colors.GREEN, bold=True)
+                else:
+                    typer.secho(f"\n{message}", fg=typer.colors.RED, bold=True)
 
-            # XXXXXXXXXXX Zusammengefasst das erstellte Habit zusammengefasst anzeigen XXXXXXXXXXXX
 
-            success, message = tracker.store_new_habit(new_habit)  # store habit in main.db
+            elif creation_type == "2. Create a custom habit":
+                name = questionary.text("Whats the name of the habit?").ask()
+                if not name:
+                    typer.secho("Name cannot be empty. Habit creation cancelled.", fg=typer.colors.RED)
+                    questionary.press_any_key_to_continue("Press any key to continue...").ask()
+                    continue
+                desc = questionary.text("What is the description of your habit?").ask()
+                periodicity = questionary.select(
+                    "Do you want to complete the habit daily or weekly?",
+                    choices=["Daily", "Weekly"]).ask()
 
-            if success:
-                typer.secho(f"\nHabit {name} was created successfully!", fg=typer.colors.GREEN, bold=True)
+                start_date = datetime.now()
 
-            else:
-                typer.secho(f"\n{message}", fg=typer.colors.RED, bold=True)
+                end_date = None
+                add_end = questionary.confirm("Do you want to set an end date for this habit?", default=False).ask()
+                if add_end:
+                    while True:
+                        date_input = questionary.text("Enter end date (Format: YYYY-MM-DD):").ask()
 
+                        if not date_input:
+                            break  # User left it empty, remains None
+
+                        # RegEx to validate format
+                        if re.match(r"^\d{4}-\d{2}-\d{2}$", date_input):
+                            try:
+                                # Convert the string to a real datetime object for the Habit class
+                                end_date = datetime.strptime(date_input, "%Y-%m-%d")
+
+                                # Check that end date isn't in the past
+                                if end_date.date() < start_date.date():
+                                    print("The end date cannot be in the past!")
+                                    continue
+                                break  # Valid date provided, leave loop
+                            except ValueError:
+                                print("Invalid date values (e.g., check months/days).")
+                        else:
+                            print("Invalid format! Please use YYYY-MM-DD (e.g., 2026-12-31).")
+
+
+                new_habit = Habit(
+                    name=name.strip(),  # strip removes whitespaces at beginning and end
+                    periodicity=periodicity.lower(),
+                    desc=desc.strip(),
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+
+                success, message = tracker.store_new_habit(new_habit)  # store habit in main.db
+                if success:
+                    typer.secho(f"\nHabit {name} was created successfully!", fg=typer.colors.GREEN, bold=True)
+                else:
+                    typer.secho(f"\n{message}", fg=typer.colors.RED, bold=True)
             questionary.press_any_key_to_continue("Press any key to continue...").ask()
 
 
 
         elif choice == "2. Manage habits":
             """ User can edit and delete all created habits"""
-            print("\n" * 10)
+            print("\n" * 20)
 
-            typer.secho("=" * 45, fg=typer.colors.CYAN)
-            typer.secho("    Manage habits", fg=typer.colors.CYAN, bold=True)
-            typer.secho("=" * 45, fg=typer.colors.CYAN)
+            typer.secho("=" * 45, fg=typer.colors.BRIGHT_MAGENTA)
+            typer.secho("    Manage habits", fg=typer.colors.WHITE, bold=True)
+            typer.secho("=" * 45, fg=typer.colors.BRIGHT_MAGENTA)
 
             habit_names = tracker.get_habit_names()     # Get habit names from db
 
@@ -156,16 +187,15 @@ def cli():
                 choices=["1. Edit a habit", "2. Delete a habit", "0. Back"],
                 style=custom_style
             ).ask()
-
             if not action or action == "0. Back":
                 # User returns to main menu
                 continue
 
 
             elif action == "1. Edit a habit":
-                typer.secho("=" * 45, fg=typer.colors.CYAN)
-                typer.secho("    Edit a Habit", fg=typer.colors.RED, bold=True)
-                typer.secho("=" * 45, fg=typer.colors.CYAN)
+                typer.secho("=" * 45, fg=typer.colors.BRIGHT_RED)
+                typer.secho("    Edit a Habit", fg=typer.colors.WHITE, bold=True)
+                typer.secho("=" * 45, fg=typer.colors.BRIGHT_RED)
 
                 # User selects the habit that he wants to edit
                 selected_habit = questionary.select(
@@ -173,22 +203,20 @@ def cli():
                     choices=habit_names + ["0. Back"],
                     style=custom_style
                 ).ask()
-
                 if not selected_habit or selected_habit == "0. Back":
+                    # User returns to main menu
                     continue
 
-                # Platzhalter für die neuen Werte (bleiben None, wenn der User Nein sagt)
+                # no changes by default
                 new_name = None
                 new_desc = None
                 new_period = None
 
-                # 2. Schritt-für-Schritt Abfrage mit questionary.confirm
+                # 2. Step by step editing
                 if questionary.confirm(f"Do you want to change the name of '{selected_habit}'?").ask():
                     new_name = questionary.text("Enter new name:", style=custom_style).ask()
-
                 if questionary.confirm("Do you want to update the description?").ask():
                     new_desc = questionary.text("Enter new description:", style=custom_style).ask()
-
                 if questionary.confirm("Do you want to edit the periodicity?").ask():
                     new_period = questionary.select(
                         "Select new periodicity:",
@@ -196,12 +224,12 @@ def cli():
                         style=custom_style
                     ).ask()
 
-                # 3. Prüfen, ob überhaupt etwas geändert wurde
+                # 3. Check if no changes were made
                 if new_name is None and new_desc is None and new_period is None:
                     typer.secho("\nNo changes made.", fg=typer.colors.YELLOW)
                     continue
 
-                # 4. Speichern!
+                # 4. save in db
                 tracker.edit_habit(
                     old_name=selected_habit,
                     new_name=new_name,
@@ -215,9 +243,9 @@ def cli():
 
 
             elif action == "2. Delete a habit":
-                typer.secho("=" * 45, fg=typer.colors.CYAN)
-                typer.secho("    Delete a Habit", fg=typer.colors.RED, bold=True)
-                typer.secho("=" * 45, fg=typer.colors.CYAN)
+                typer.secho("=" * 45, fg=typer.colors.BRIGHT_RED)
+                typer.secho("    Delete a Habit", fg=typer.colors.WHITE, bold=True)
+                typer.secho("=" * 45, fg=typer.colors.BRIGHT_RED)
 
                 # User selects the habit that he wants to delete
                 selected_habit = questionary.select(
@@ -229,31 +257,28 @@ def cli():
                 if not selected_habit or selected_habit == "0. Back":
                     continue
 
+                # confirmation safeguard to prevent accidental deletion
                 confirm = questionary.confirm(
                     f"Are you sure you want to delete '{selected_habit}'? This will delete all progress!",
                     default=False
                 ).ask()
-
                 if confirm is True:
                     success, message = tracker.delete_habit(selected_habit)
-
                     color = typer.colors.GREEN if success else typer.colors.RED
-
                     typer.secho(f"\n{message}", fg=color, bold=True)
                 else:
                     typer.secho("\nDeletion cancelled.", fg=typer.colors.CYAN)
-
                 questionary.press_any_key_to_continue("\nPress any key to continue...").ask()
 
 
 
         elif choice == "3. Complete a habit":
             """User can complete a habit that he created"""
-            print("\n" * 10)
+            print("\n" * 20)
 
-            typer.secho("=" * 45, fg=typer.colors.CYAN)
-            typer.secho("    Complete a Habit", fg=typer.colors.CYAN, bold=True)
-            typer.secho("=" * 45, fg=typer.colors.CYAN)
+            typer.secho("=" * 45, fg=typer.colors.BRIGHT_CYAN)
+            typer.secho("    Complete a Habit", fg=typer.colors.WHITE, bold=True)
+            typer.secho("=" * 45, fg=typer.colors.BRIGHT_CYAN)
 
             # Fetch available habit names
             habit_names = tracker.get_habit_names()
@@ -271,8 +296,7 @@ def cli():
             ).ask()
 
             if not selected_habit or selected_habit == "0. Back":
-                typer.secho("Action cancelled.", fg=typer.colors.RED)
-                questionary.press_any_key_to_continue("Press any key to continue...").ask()
+                # User returns to main menu
                 continue
 
             # Call the tracker logic to record the completion
@@ -283,29 +307,17 @@ def cli():
             else:
                 typer.secho(f"\n{message}", fg=typer.colors.RED, bold=True)
 
-            # XXXXXXXX Anzeigen, was aktuell die streak ist XXXXXXXXXXXX
-            # XXXXXXXX Wenn streak gebrochen --> User einen Hinweis geben und ggf Motivationsspruch XXXXXXXXXXXX
-
             questionary.press_any_key_to_continue("Press any key to continue...").ask()
 
 
 
         elif choice == "4. Analyse":
-            """Was soll hier rein:
-            - Habits anzeigen --> Liste von allen, alle aktiven, alle daily oder alle weekly
-            - Streaks von einzelnem habit anzeigen (aktive streak und all-time)
-            - Letzten (10) completion dates anzeigen
-            - Welche streak ist am längsten von allen habits
-            - Welche aktive streak ist am längsten
-            - Welches habit wurde am meisten gebrochen?
-                --> insgesamt am meisten oder innerhalb von zeitraum (letzte 30 Tage)
-            """
-            print("\n" * 10)
 
             while True:
-                typer.secho("=" * 45, fg=typer.colors.CYAN)
-                typer.secho("    Habit Analytics Dashboard", fg=typer.colors.MAGENTA, bold=True)
-                typer.secho("=" * 45, fg=typer.colors.CYAN)
+                print("\n" * 20)
+                typer.secho("=" * 45, fg=typer.colors.BRIGHT_GREEN)
+                typer.secho("    Habit Analytics Dashboard", fg=typer.colors.WHITE, bold=True)
+                typer.secho("=" * 45, fg=typer.colors.BRIGHT_GREEN)
 
                 analyse_choice = questionary.select(
                     "What analysis do you want to run?",
@@ -337,7 +349,7 @@ def cli():
                                 f"{h.name} ({h.periodicity}) - Desc: {h.desc} | Current Streak: {h.current_streak} | All-time Longest: {h.longest_streak}")
                     questionary.press_any_key_to_continue().ask()
 
-                # 2. FILTER BY PERIODICITY
+                # Filter by periodicity
                 elif analyse_choice == "2. Filter habits by periodicity (Daily/Weekly)":
                     period = questionary.select("Select periodicity:", choices=["Daily", "Weekly"]).ask()
                     if period:
@@ -351,7 +363,7 @@ def cli():
                                 print(f"{h.name} - Current: {h.current_streak} | Longest: {h.longest_streak}")
                     questionary.press_any_key_to_continue().ask()
 
-                # 2. View streak of selected habit
+                # View streak of selected habit
                 elif analyse_choice == "3. View streaks of a specific habit":
                     habit_names = tracker.get_habit_names()
 
@@ -366,7 +378,7 @@ def cli():
                         ).ask()
 
                         if selected_habit:
-                            # 3. Das entsprechende Habit-Objekt aus der DB/Liste holen
+                            # fetch habit from db
                             all_habits = tracker.get_all_habits()
                             target_habit = next((h for h in all_habits if h.name == selected_habit), None)
 
@@ -390,14 +402,13 @@ def cli():
                         questionary.press_any_key_to_continue().ask()
 
                     else:
-                        # Super schlank und sauber!
                         selected_habit = questionary.select(
                             "Choose a habit to check history:",
                             choices=habit_names,
                             style=custom_style
                         ).ask()
 
-                        # 3. Historie abrufen
+                        # fetch completion dates
                         history = tracker.get_completion_history(selected_habit)
 
                         if not history:
@@ -410,11 +421,10 @@ def cli():
                                 date_display = dt.strftime('%Y-%m-%d') if hasattr(dt, 'strftime') else str(dt)
                                 print(f" {idx}. ✅ {date_display}")
 
-                        # Das hält den Bildschirm an, damit du das Ergebnis siehst!
                         questionary.press_any_key_to_continue().ask()
 
 
-                # 5. LONGEST STREAK OF ALL TIME OVERALL
+                # Longest streak of all time, overall
                 elif analyse_choice == "5. Find longest streak of all time across all habits":
                     habits = tracker.get_all_habits()
                     name, length = get_longest_active_streak(habits)
@@ -426,7 +436,7 @@ def cli():
                             fg=typer.colors.GREEN, bold=True)
                     questionary.press_any_key_to_continue().ask()
 
-                    # 6. LONGEST ACTIVE STREAK OVERALL
+                    # Longest active streak, overall
                 elif analyse_choice == "6. Find longest active streak across all habits":
                     habits = tracker.get_all_habits()
                     name, length = get_longest_active_streak(habits)
@@ -438,7 +448,7 @@ def cli():
                             fg=typer.colors.GREEN, bold=True)
                     questionary.press_any_key_to_continue().ask()
 
-                # 7. MOST STRUGGLED HABIT
+                # Most struggled habit
                 elif analyse_choice == "7. Show most struggled habit (broken streaks)":
                     habits = tracker.get_all_habits()
                     if not habits:
@@ -470,15 +480,14 @@ def cli():
 
 
         elif choice == "5. Help":
-            print("\n" * 10)
+            print("\n" * 20)
 
 
             while True:
-                typer.secho("=" * 45, fg=typer.colors.CYAN)
-                typer.secho("    Help & Frequently Asked Questions", fg=typer.colors.CYAN, bold=True)
-                typer.secho("=" * 45, fg=typer.colors.CYAN)
+                typer.secho("=" * 45, fg=typer.colors.BRIGHT_BLACK)
+                typer.secho("    Help & Frequently Asked Questions", fg=typer.colors.WHITE, bold=True)
+                typer.secho("=" * 45, fg=typer.colors.BRIGHT_BLACK)
 
-                # 1. Menü mit den Fragen aus unserem Dictionary + Zurück-Option
                 help_choices = list(HELP_CONTENT.keys()) + ["0. Back"]
 
                 selected_question = questionary.select(
@@ -489,10 +498,11 @@ def cli():
 
                 # Return to main menu
                 if not selected_question or selected_question == "0. Back":
-                    typer.secho("Back to main menu", fg=typer.colors.YELLOW)
+                    # User returns to main menu
                     break
 
-                ''' Return the answer from resources'''
+                # Return the answer from resources
+                print("\n" * 10)
                 answer = HELP_CONTENT[selected_question]
 
                 typer.secho(f"\n{selected_question}", fg=typer.colors.YELLOW, bold=True)
@@ -500,15 +510,14 @@ def cli():
                 typer.secho(answer, fg=typer.colors.WHITE)
                 print("-" * len(selected_question) * 2)
 
-                # Kurze Pause, damit der User den Text lesen kann, bevor das Menü neu lädt
                 questionary.press_any_key_to_continue("\nPress any key to read another topic...").ask()
 
         elif choice == "0. Exit":
-            print("\n" * 10)
+            print("\n" * 20)
             typer.secho("=" * 45, fg=typer.colors.RED)
-            print("Thanks for using the Habit Tracker.")
+            typer.secho("Thanks for using the Habit Tracker.", fg=typer.colors.WHITE, bold=True)
             typer.secho("=" * 45, fg=typer.colors.RED)
-            stop = True  # while loop ends
+            print("\n" * 2)
             db.close()  # Database gets closed
             raise typer.Exit()
 
